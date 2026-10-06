@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>EliCloud.Sdk</RootNamespace>
+    <AssemblyName>EliCloud.Sdk</AssemblyName>
+    <PackageId>EliCloud.Sdk</PackageId>
+    <Description>EliCloud 平台的官方 .NET SDK：SSO/OIDC 客户端（授权码+PKCE、设备码、刷新、userinfo）、MC 白名单服务、平台服务清单，以及资源服务侧的 access token 校验。</Description>
+    <PackageTags>elicloud;oidc;oauth2;sso;sdk</PackageTags>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+</Project>

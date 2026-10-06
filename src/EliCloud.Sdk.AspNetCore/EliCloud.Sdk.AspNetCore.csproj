@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>EliCloud.Sdk.AspNetCore</RootNamespace>
+    <AssemblyName>EliCloud.Sdk.AspNetCore</AssemblyName>
+    <PackageId>EliCloud.Sdk.AspNetCore</PackageId>
+    <Description>把 EliCloud 的 access token 校验接进 ASP.NET Core：认证处理器 + scope 授权策略，供 EliCloud 业务服务（资源服务）使用。</Description>
+    <PackageTags>elicloud;aspnetcore;authentication;jwt;oidc</PackageTags>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EliCloud.Sdk\EliCloud.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>

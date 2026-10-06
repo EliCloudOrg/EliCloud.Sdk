@@ -1,0 +1,49 @@
+name: ci
+
+# Builds and tests every push to main and every pull request, on both Windows and
+# Linux: the SDK ships a net10.0 package, so "it compiles on my machine" is not
+# enough. The live integration tests stay skipped here (they need a route to the
+# deployment and are gated by ELICLOUD_LIVE_TESTS=1); run them locally with
+# `pwsh -File eng/test.ps1 -Live`.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build (whole solution, samples included)
+        run: pwsh -File eng/build.ps1 -Configuration Release
+
+      - name: Test (unit + contract; live tests skipped)
+        run: pwsh -File eng/test.ps1 -Configuration Release
+
+      - name: Pack (checks packaging metadata, publishes nothing)
+        run: pwsh -File eng/publish.ps1 -Configuration Release
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: packages-${{ matrix.os }}
+          path: artifacts/packages/*
+          if-no-files-found: error

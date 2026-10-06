@@ -1,0 +1,21 @@
+<Project>
+
+  <!--
+    只对「可打包」的项目生效（src/ 下的两个包），测试与示例都是 IsPackable=false。
+    放在 targets 而不是 props 里，是因为 IsPackable 由各项目的 csproj 自己设置，
+    到 targets 被导入时（项目体之后）才已知。
+  -->
+  <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+    <!-- 包内自带 README，nuget.org 详情页直接渲染它 -->
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- 同时产出 .snupkg 符号包：调试时可以单步进 SDK 源码。
+         本工作区不是 git 仓库，因此不接 SourceLink，符号就是纯 PDB。 -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+
+</Project>

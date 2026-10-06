@@ -1,0 +1,21 @@
+## 构建产物
+bin/
+obj/
+artifacts/
+
+## 依赖直接还原到工作区内时用到的目录
+.packages/
+.packages-scratch/
+.packages-http/
+.packages-plugins/
+
+## 本地配置与用户机密
+*.user
+appsettings.Development.json
+.env
+.env.local
+
+## 编辑器
+.vs/
+.idea/
+*.swp

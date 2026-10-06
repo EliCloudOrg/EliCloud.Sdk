@@ -1,0 +1,5 @@
+* text=auto
+
+# Keep the PowerShell scripts LF in the repository: they are ASCII-only and the
+# Linux CI runner does not care, while a CRLF/LF flip-flop causes noisy diffs.
+*.ps1 text eol=lf

@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/EliCloud.Sdk.Sample.DeviceLogin/EliCloud.Sdk.Sample.DeviceLogin.csproj" />
+    <Project Path="samples/EliCloud.Sdk.Sample.QuickStart/EliCloud.Sdk.Sample.QuickStart.csproj" />
+    <Project Path="samples/EliCloud.Sdk.Sample.ResourceServer/EliCloud.Sdk.Sample.ResourceServer.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/EliCloud.Sdk.AspNetCore/EliCloud.Sdk.AspNetCore.csproj" />
+    <Project Path="src/EliCloud.Sdk/EliCloud.Sdk.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EliCloud.Sdk.Tests/EliCloud.Sdk.Tests.csproj" />
+  </Folder>
+</Solution>

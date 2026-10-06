@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>EliCloud.Sdk.Sample.QuickStart</RootNamespace>
+    <AssemblyName>EliCloud.Sdk.Sample.QuickStart</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EliCloud.Sdk\EliCloud.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>

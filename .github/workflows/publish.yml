@@ -1,0 +1,90 @@
+name: publish
+
+# Publishes EliCloud.Sdk and EliCloud.Sdk.AspNetCore to nuget.org with Trusted
+# Publishing (OIDC). There is no long-lived NuGet API key anywhere: nuget.org
+# disabled them, and this workflow exchanges the GitHub OIDC token for a
+# short-lived, single-use key instead.
+#
+# Trigger it either way:
+#   1. push a tag:  git tag v1.0.0-alpha.1 && git push origin v1.0.0-alpha.1
+#                   (the tag must match the version MSBuild packs, otherwise the
+#                    run fails before anything is uploaded)
+#   2. manually:    Actions -> publish -> Run workflow
+#                   (optionally with a version suffix override for a trial run)
+#
+# Requirements on the nuget.org side: a Trusted Publishing policy whose
+# repository owner / repository / workflow file match this file, and a repository
+# variable NUGET_USER holding the nuget.org profile name.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_suffix:
+        description: 'Override VersionSuffix for a trial publish (e.g. beta.1). Empty = use the repo default.'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # required to request the GitHub OIDC token
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # SourceLink needs the full history
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test (unit + contract; live tests skipped)
+        run: pwsh -File eng/test.ps1 -Configuration Release
+
+      # A tag push pins the expected version; a manual run expects nothing.
+      - name: Release metadata
+        id: meta
+        shell: pwsh
+        run: |
+          $expected = ''
+          $tag = '${{ github.ref_name }}'
+          if ('${{ github.ref }}' -like 'refs/tags/*') {
+            $expected = $tag -replace '^v', ''
+          }
+          "expected=$expected" >> $env:GITHUB_OUTPUT
+          Write-Host "tag                      : '$tag'"
+          Write-Host "expected package version : '$expected'"
+          Write-Host "version suffix override  : '${{ inputs.version_suffix }}'"
+
+      # Short-lived key, valid for one hour: request it right before pushing.
+      - name: NuGet login (OIDC -> short-lived API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Build, pack, push
+        shell: pwsh
+        env:
+          # eng/publish.ps1 picks this up by itself; it never appears in a command line.
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          $arguments = @(
+            '-File', 'eng/publish.ps1',
+            '-Configuration', 'Release',
+            '-Push',
+            '-ExpectedVersion', '${{ steps.meta.outputs.expected }}',
+            '-VersionSuffix', '${{ inputs.version_suffix }}'
+          )
+          Write-Host "pwsh $($arguments -join ' ')"
+          pwsh @arguments
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

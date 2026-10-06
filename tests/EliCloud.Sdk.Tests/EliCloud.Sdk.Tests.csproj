@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>EliCloud.Sdk.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 注意：PrivateAssets/IncludeAssets 只能写在 xunit.runner.visualstudio 上。
+         写在 Microsoft.NET.Test.Sdk 上会把它的 compile 资产（Microsoft.TestPlatform.TestHost）
+         一起滤掉，导致自动生成的 Program.cs 报 CS0234（找不到 Microsoft.VisualStudio.*）。 -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\EliCloud.Sdk\EliCloud.Sdk.csproj" />
+    <ProjectReference Include="..\..\src\EliCloud.Sdk.AspNetCore\EliCloud.Sdk.AspNetCore.csproj" />
+  </ItemGroup>
+
+</Project>

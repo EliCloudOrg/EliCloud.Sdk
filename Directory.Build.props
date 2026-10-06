@@ -1,0 +1,59 @@
+<Project>
+
+  <!-- 全解决方案共用的编译设置。目标框架固定 net10.0（用户要求）。 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!--
+      环境类的 NuGet 警告不应当作编译错误（它们与代码质量无关）：
+        NU1507 —— 本机全局配置里有多个包源（nuget.org / Azure DevOps / 离线目录），
+                  CPM 会提示做包源映射，属于机器配置而非常仓库问题；
+        NU1900~NU1904 —— 源不可达时拿不到包审核/漏洞数据。
+    -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1507;NU1900;NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
+    <!-- NU1507 每次生成都会重复刷屏，直接静音；包源映射由使用者按自己的环境决定。 -->
+    <NoWarn>$(NoWarn);NU1507</NoWarn>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- 文档注释缺失只是噪音，不当错误：SDK 的公开 API 必须逐个写注释，但先允许渐进补齐。 -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+  </PropertyGroup>
+
+  <!-- 可复现构建：不隐式引入 SDK 自带的分析器等额外依赖 -->
+  <PropertyGroup>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Product>EliCloud SDK</Product>
+    <Authors>EliCloud</Authors>
+    <Company>EliCloud</Company>
+    <Copyright>Copyright (c) 2026 EliCloud</Copyright>
+    <VersionPrefix>1.0.0</VersionPrefix>
+    <!--
+      首发走预发布通道：nuget.org 上同一版本号**不可覆盖**，只能 unlist，
+      所以先用 1.0.0-alpha.1 占住 id 并验证端到端安装，确认无误后再发正式版。
+      发 1.0.0 正式版 = 删掉（或注释掉）下面这行；换别的预发布号用
+      `dotnet pack -p:VersionSuffix=beta.1`（命令行属性优先于本行）。
+    -->
+    <VersionSuffix>alpha.1</VersionSuffix>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <!-- 产物集中到 artifacts/packages，推包脚本照着这个目录找，不猜 bin/ 路径。 -->
+    <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts\packages</PackageOutputPath>
+    <!--
+      仓库地址目前留空，等仓库上线后再把 RepositoryUrl 填在这里（nuspec 会自动带上）。
+      注意：留空时 nuspec 里仍会出现一个没有 url 的 <repository type="git" />，
+      那是 SDK 自带的 git 目标（Microsoft.Build.Tasks.Git.targets）把 RepositoryType
+      默认成 git 的结果，并非本文件设置，属正常现象。
+    -->
+  </PropertyGroup>
+
+</Project>

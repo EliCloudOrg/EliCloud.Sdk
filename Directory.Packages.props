@@ -1,0 +1,42 @@
+<Project>
+
+  <!--
+    中央包版本管理（CPM）。
+
+    Microsoft.Extensions.* 统一取 10.0.11（10.0.12 缺 Options / Logging 等同批次包）。
+    Microsoft.IdentityModel.* 取 7.1.2：这是**同时存在于 nuget.org 与本机离线镜像**
+    的最新版本，且已包含 CVE-2024-21319（JsonWebTokens 的 DoS）修复，
+    因此无论在线还是离线构建都能还原出同一套依赖。
+    要升级到 8.x 时改这里一处即可（本机离线镜像没有 8.x，需要联网还原）。
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Label="运行库依赖">
+    <!-- OIDC 令牌的解析与验签（RS256 + kid）。SDK 不自己实现 JWT 校验。 -->
+    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="7.1.2" />
+    <PackageVersion Include="Microsoft.IdentityModel.Tokens" Version="7.1.2" />
+  </ItemGroup>
+
+  <ItemGroup Label="DI / 配置 / 日志抽象">
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup Label="示例与测试">
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>

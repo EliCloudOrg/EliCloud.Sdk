@@ -49,11 +49,13 @@
     <!-- 产物集中到 artifacts/packages，推包脚本照着这个目录找，不猜 bin/ 路径。 -->
     <PackageOutputPath>$(MSBuildThisFileDirectory)artifacts\packages</PackageOutputPath>
     <!--
-      仓库地址目前留空，等仓库上线后再把 RepositoryUrl 填在这里（nuspec 会自动带上）。
-      注意：留空时 nuspec 里仍会出现一个没有 url 的 <repository type="git" />，
-      那是 SDK 自带的 git 目标（Microsoft.Build.Tasks.Git.targets）把 RepositoryType
-      默认成 git 的结果，并非本文件设置，属正常现象。
+      仓库地址不写死：在 git 仓库里构建时由 SDK 的 git 目标从 origin 推导
+      （EliCloudOrg/EliCloud.Sdk），离开 git 仓库时自然为空。
+      PublishRepositoryUrl 决定这个地址是否写进包元数据（nuspec 的 <repository url>）
+      与程序集的 AssemblyMetadata；缺省 false 时 nuspec 里只剩 type 和 commit。
+      SourceLink（PDB 里的源码地址映射）则由 SDK 内置支持自动生成，无需额外包。
     -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
   </PropertyGroup>
 
 </Project>

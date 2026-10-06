@@ -11,7 +11,14 @@ using EliCloud.Sdk.Mc;
 using EliCloud.Sdk.Sso;
 using EliCloud.Sdk.Tokens;
 
-var baseAddress = Environment.GetEnvironmentVariable("ELICLOUD_BASE") ?? "https://api.example.com";
+// 入口地址必须由环境提供：SDK 不提供默认入口，也不会把某一次部署写死进库里。
+var baseAddress = Environment.GetEnvironmentVariable("ELICLOUD_BASE");
+if (string.IsNullOrWhiteSpace(baseAddress))
+{
+    Console.Error.WriteLine("请先设置 ELICLOUD_BASE，例如：$env:ELICLOUD_BASE = 'https://api.example.com'");
+    return 1;
+}
+
 var clientId = Environment.GetEnvironmentVariable("ELICLOUD_CLIENT_ID") ?? "elicloud-cli";
 
 // offline_access 才会拿到 refresh token；mc:whitelist 是调用「我的 MC 白名单」所需的 scope。

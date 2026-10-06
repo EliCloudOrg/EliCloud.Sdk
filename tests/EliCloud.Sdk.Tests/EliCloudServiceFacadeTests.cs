@@ -13,49 +13,84 @@ namespace EliCloud.Sdk.Tests;
 /// 门面用的是**进程级静态状态**，所以每个测试都要先 <see cref="EliCloudService.Reset"/>：
 /// xunit 对每个测试方法新建一个实例并调用 <see cref="Dispose"/>，
 /// 因此把重置放在构造与释放两处，就能保证测试之间互不污染。
+/// 构造函数里顺便配好入口地址——门面没有默认入口，不配就用不了。
 /// </remarks>
 public sealed class EliCloudServiceFacadeTests : IDisposable
 {
-    public EliCloudServiceFacadeTests() => EliCloudService.Reset();
+    public EliCloudServiceFacadeTests()
+    {
+        EliCloudService.Reset();
+        ConfigureEntryAddress();
+    }
 
     public void Dispose() => EliCloudService.Reset();
 
-    // ------------------------------------------------------------ 零配置可用
+    // ------------------------------------------------ 入口地址必须显式配置
 
     [Fact]
-    public void GetProvider_WorksWithoutAnyConfiguration()
+    public void GetProvider_WithoutBaseAddress_ThrowsTeachingError()
     {
-        // 默认配置就是当前 IP 阶段的入口，因此「什么都不配」也必须能用。
+        // 门面不提供默认入口：没配置就报错，而不是悄悄连到某个写死的地址。
+        EliCloudService.Reset();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => EliCloudService.GetProvider(EliCloudServiceIds.Mc));
+
+        Assert.Contains("BaseAddress", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ShortcutProperty_WithoutBaseAddress_ThrowsToo()
+    {
+        EliCloudService.Reset();
+
+        Assert.Throws<InvalidOperationException>(() => _ = EliCloudService.Sso);
+    }
+
+    [Fact]
+    public void GetProvider_WorksAfterConfiguration()
+    {
+        ConfigureEntryAddress();
+
         var service = EliCloudService.GetProvider(EliCloudServiceIds.Mc);
 
         Assert.Equal("mc", service.ServiceId);
-        Assert.Equal("https://api.example.com/mc/", service.BaseAddress.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/mc/", service.BaseAddress.AbsoluteUri);
     }
 
     [Fact]
     public void AsMc_ProducesClientPointingAtThatService()
     {
+        ConfigureEntryAddress();
+
         var client = EliCloudService.GetProvider("mc").AsMc();
 
-        Assert.Equal("https://api.example.com/mc/healthz", client.HealthEndpoint.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/mc/healthz", client.HealthEndpoint.AbsoluteUri);
     }
 
     [Fact]
     public void AsSso_ProducesClientPointingAtAuthPrefix()
     {
+        ConfigureEntryAddress();
+
         var client = EliCloudService.GetProvider("sso").AsSso();
 
-        Assert.Equal("https://api.example.com/auth/token", client.TokenEndpoint.AbsoluteUri);
-        Assert.Equal("https://api.example.com/auth/v1/clients", client.ClientsEndpoint.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/auth/token", client.TokenEndpoint.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/auth/v1/clients", client.ClientsEndpoint.AbsoluteUri);
     }
 
     [Fact]
     public void AsMainApi_ProducesClientPointingAtCorePrefix()
     {
+        ConfigureEntryAddress();
+
         var client = EliCloudService.GetProvider("main-api").AsMainApi();
 
-        Assert.Equal("https://api.example.com/core/v1/services", client.ServicesEndpoint.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/core/v1/services", client.ServicesEndpoint.AbsoluteUri);
     }
+
+    private static void ConfigureEntryAddress() =>
+        EliCloudService.Configure(options => options.BaseAddress = new Uri(TestOptions.BaseAddress));
 
     // ------------------------------------------- 一个服务只有一个名字：服务名
 
@@ -105,11 +140,11 @@ public sealed class EliCloudServiceFacadeTests : IDisposable
     [Fact]
     public void Configure_ChangesEveryDerivedAddress()
     {
-        EliCloudService.Configure(options => options.BaseAddress = new Uri("https://api.example.com"));
+        EliCloudService.Configure(options => options.BaseAddress = new Uri("https://elicloud.test"));
 
-        Assert.Equal("https://api.example.com/auth/", EliCloudService.GetProvider("sso").BaseAddress.AbsoluteUri);
-        Assert.Equal("https://api.example.com/mc/", EliCloudService.GetProvider("mc").BaseAddress.AbsoluteUri);
-        Assert.Equal("https://api.example.com/core/", EliCloudService.GetProvider("main-api").BaseAddress.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/auth/", EliCloudService.GetProvider("sso").BaseAddress.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/mc/", EliCloudService.GetProvider("mc").BaseAddress.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/core/", EliCloudService.GetProvider("main-api").BaseAddress.AbsoluteUri);
     }
 
     [Fact]
@@ -117,11 +152,11 @@ public sealed class EliCloudServiceFacadeTests : IDisposable
     {
         EliCloudService.Configure(options =>
         {
-            options.BaseAddress = new Uri("https://api.example.com");
+            options.BaseAddress = new Uri("https://elicloud.test");
             options.McPathPrefix = "/minecraft";
         });
 
-        Assert.Equal("https://api.example.com/minecraft/", EliCloudService.GetProvider("mc").BaseAddress.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/minecraft/", EliCloudService.GetProvider("mc").BaseAddress.AbsoluteUri);
     }
 
     [Fact]
@@ -224,12 +259,12 @@ public sealed class EliCloudServiceFacadeTests : IDisposable
     [Fact]
     public void RegisterWithPathPrefix_DerivesAddressFromBaseAddress()
     {
-        EliCloudService.Configure(options => options.BaseAddress = new Uri("https://api.example.com"));
+        EliCloudService.Configure(options => options.BaseAddress = new Uri("https://elicloud.test"));
         EliCloudService.Register(EliCloudServiceIds.PdfDecrypt, "/pdf-decrypt");
 
         var service = EliCloudService.GetProvider(EliCloudServiceIds.PdfDecrypt);
 
-        Assert.Equal("https://api.example.com/pdf-decrypt/", service.BaseAddress.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/pdf-decrypt/", service.BaseAddress.AbsoluteUri);
         Assert.True(service.IsService(EliCloudServiceIds.PdfDecrypt));
     }
 
@@ -250,7 +285,7 @@ public sealed class EliCloudServiceFacadeTests : IDisposable
 
         var baseAddress = EliCloudService.GetProvider("pdf-decrypt").AsFakePdfDecrypt();
 
-        Assert.Equal("https://api.example.com/pdf-decrypt/", baseAddress.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/pdf-decrypt/", baseAddress.AbsoluteUri);
     }
 
     [Fact]
@@ -288,6 +323,7 @@ public sealed class EliCloudServiceFacadeTests : IDisposable
     [Fact]
     public async Task ShortcutProperties_MatchTheProviderPath()
     {
+        ConfigureEntryAddress();
         var handler = new CapturingHandler(_ => Stub.Json("""{"sub":"user_0001","names":[]}"""));
         EliCloudService.UseHttpClient(TestOptions.HttpClient(handler));
 
@@ -301,22 +337,26 @@ public sealed class EliCloudServiceFacadeTests : IDisposable
     [Fact]
     public void ShortcutProperties_ReturnClientsForEachService()
     {
-        Assert.Equal("https://api.example.com/auth/login", EliCloudService.Sso.LoginEndpoint.AbsoluteUri);
-        Assert.Equal("https://api.example.com/mc/healthz", EliCloudService.Mc.HealthEndpoint.AbsoluteUri);
-        Assert.Equal("https://api.example.com/core/v1/services", EliCloudService.MainApi.ServicesEndpoint.AbsoluteUri);
+        ConfigureEntryAddress();
+
+        Assert.Equal("https://elicloud.test/auth/login", EliCloudService.Sso.LoginEndpoint.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/mc/healthz", EliCloudService.Mc.HealthEndpoint.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/core/v1/services", EliCloudService.MainApi.ServicesEndpoint.AbsoluteUri);
     }
 
     // ---------------------------------------------------------------- Reset
 
     [Fact]
-    public void Reset_RestoresDefaultsAndClearsRegistrations()
+    public void Reset_ClearsEntryAddressAndRegistrations()
     {
         EliCloudService.Configure(options => options.BaseAddress = new Uri("https://elicloud.example"));
         EliCloudService.Register(EliCloudServiceIds.PdfDecrypt, "/pdf-decrypt");
 
         EliCloudService.Reset();
 
-        Assert.Equal("https://api.example.com/auth/", EliCloudService.GetProvider("sso").BaseAddress.AbsoluteUri);
+        // Reset 之后回到「入口未配置」的初始状态，而不是某个默认地址。
+        Assert.Null(EliCloudService.Options.BaseAddress);
+        Assert.Throws<InvalidOperationException>(() => EliCloudService.GetProvider(EliCloudServiceIds.Sso));
         Assert.Throws<KeyNotFoundException>(() => EliCloudService.GetProvider(EliCloudServiceIds.PdfDecrypt));
     }
 
@@ -326,7 +366,7 @@ public sealed class EliCloudServiceFacadeTests : IDisposable
         EliCloudService.Configure(options => options.BaseAddress = new Uri("https://elicloud.example"));
 
         // Uri 会为「只有 authority」的地址补上结尾斜杠，这里如实断言规范化后的形式。
-        Assert.Equal("https://elicloud.example/", EliCloudService.Options.BaseAddress.AbsoluteUri);
+        Assert.Equal("https://elicloud.example/", EliCloudService.Options.BaseAddress?.AbsoluteUri);
     }
 }
 

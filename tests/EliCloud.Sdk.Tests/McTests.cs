@@ -203,14 +203,14 @@ public sealed class McTests
     public async Task GetIdentity_ReturnsTokenClaimsWithoutQueryingSso()
     {
         var handler = new CapturingHandler(_ => Stub.Json(
-            """{"sub":"user_0001","username":"alice","issuer":"https://api.example.com/auth","scope":"openid mc:whitelist"}"""));
+            """{"sub":"user_0001","username":"alice","issuer":"https://elicloud.test/auth","scope":"openid mc:whitelist"}"""));
 
         var identity = await CreateClient(handler).GetIdentityAsync("token");
 
         Assert.Equal("/mc/v1/me", handler.Single().Path);
         Assert.Equal("user_0001", identity.Sub);
         Assert.Equal("alice", identity.Username);
-        Assert.Equal("https://api.example.com/auth", identity.Issuer);
+        Assert.Equal("https://elicloud.test/auth", identity.Issuer);
     }
 
     // ---------------------------------------------------------------- /healthz
@@ -219,7 +219,7 @@ public sealed class McTests
     public async Task Health_OkPayloadIsParsed()
     {
         var handler = new CapturingHandler(_ => Stub.Json(
-            """{"status":"ok","rcon":{"reachable":true,"endpoint":"urania-mc:25575","latency_ms":12},"whitelist_count":3,"sso_issuer":"https://api.example.com/auth","version":"1.0.0"}"""));
+            """{"status":"ok","rcon":{"reachable":true,"endpoint":"urania-mc:25575","latency_ms":12},"whitelist_count":3,"sso_issuer":"https://elicloud.test/auth","version":"1.0.0"}"""));
 
         var health = await CreateClient(handler).GetHealthAsync();
 

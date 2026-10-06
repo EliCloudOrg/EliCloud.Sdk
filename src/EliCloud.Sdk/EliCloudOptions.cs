@@ -10,9 +10,9 @@ namespace EliCloud.Sdk;
 /// <see cref="BaseAddress"/>，各服务地址由它加前缀派生。
 /// </para>
 /// <para>
-/// <b>阶段切换（IP → 域名）只改这一处的 <see cref="BaseAddress"/></b>：
-/// 现在是 <c>https://api.example.com</c>，域名可用后是 <c>https://api.example.com</c>。
-/// 路径前缀、请求体、响应体都不变。
+/// <b><see cref="BaseAddress"/> 没有默认值</b>：平台入口属于部署信息，SDK 不替调用方决定
+/// （早期版本给过一个具体地址作默认值，等于把某一次部署写死进程序集，已移除）。
+/// 换环境——IP 阶段 → 域名阶段、测试 → 生产——只改这一处，路径前缀、请求体、响应体都不变。
 /// </para>
 /// <para>
 /// 某个服务将来被拆到独立主机时（例如 <c>mc.example.com</c>），
@@ -26,10 +26,13 @@ public sealed class EliCloudOptions
     /// 平台入口地址（含 scheme，可含基础路径；**不要**带服务前缀，例如不要写成 <c>https://host/auth</c>）。
     /// </summary>
     /// <remarks>
-    /// 平台**没有硬编码域名的设计**：issuer、jwks_uri、各端点 URL 都由服务端的环境变量派生，
-    /// 所以客户端也必须把它当成配置而不是常量。默认值是当前 IP 阶段的实际入口。
+    /// <para>
+    /// <b>必须显式配置，没有默认值。</b>平台本身就不硬编码入口：issuer、jwks_uri、各端点 URL
+    /// 都由服务端的环境变量派生，所以客户端也只能把它当成配置而不是常量。
+    /// </para>
+    /// <para>未配置就使用会抛 <see cref="InvalidOperationException"/>，异常信息里带正确写法。</para>
     /// </remarks>
-    public Uri BaseAddress { get; set; } = new("https://api.example.com");
+    public Uri? BaseAddress { get; set; }
 
     /// <summary>SSO 服务的路径前缀，默认 <c>/auth</c>。</summary>
     public string AuthPathPrefix { get; set; } = EliCloudConstants.AuthPathPrefix;
@@ -61,21 +64,26 @@ public sealed class EliCloudOptions
     /// <summary><c>User-Agent</c> 头；<c>null</c> 表示不设置。默认带 SDK 名称与版本，便于服务端归因问题。</summary>
     public string? UserAgent { get; set; } = EliCloudConstants.UserAgent;
 
-    /// <summary>SSO 的服务基址（派生结果，只读）。</summary>
-    public Uri SsoBaseAddress => SsoBaseAddressOverride ?? Combine(BaseAddress, AuthPathPrefix);
+    /// <summary>SSO 的服务基址（派生结果，只读）。未配置入口且无覆盖时抛异常。</summary>
+    public Uri SsoBaseAddress => SsoBaseAddressOverride ?? Combine(RequireBaseAddress(), AuthPathPrefix);
 
-    /// <summary>MC 白名单服务的基址（派生结果，只读）。</summary>
-    public Uri McBaseAddress => McBaseAddressOverride ?? Combine(BaseAddress, McPathPrefix);
+    /// <summary>MC 白名单服务的基址（派生结果，只读）。未配置入口且无覆盖时抛异常。</summary>
+    public Uri McBaseAddress => McBaseAddressOverride ?? Combine(RequireBaseAddress(), McPathPrefix);
 
-    /// <summary>平台核心 API 的基址（派生结果，只读）。</summary>
-    public Uri MainApiBaseAddress => MainApiBaseAddressOverride ?? Combine(BaseAddress, MainApiPathPrefix);
+    /// <summary>平台核心 API 的基址（派生结果，只读）。未配置入口且无覆盖时抛异常。</summary>
+    public Uri MainApiBaseAddress => MainApiBaseAddressOverride ?? Combine(RequireBaseAddress(), MainApiPathPrefix);
 
     /// <summary>校验配置是否可用；不合法时抛 <see cref="ArgumentException"/>。</summary>
     public void Validate()
     {
-        if (!BaseAddress.IsAbsoluteUri)
+        if (BaseAddress is not { } baseAddress)
         {
-            throw new ArgumentException($"BaseAddress 必须是绝对 URI，当前为「{BaseAddress}」。", nameof(BaseAddress));
+            throw new ArgumentException(BaseAddressNotConfigured, nameof(BaseAddress));
+        }
+
+        if (!baseAddress.IsAbsoluteUri)
+        {
+            throw new ArgumentException($"BaseAddress 必须是绝对 URI，当前为「{baseAddress}」。", nameof(BaseAddress));
         }
 
         ValidatePrefix(AuthPathPrefix, nameof(AuthPathPrefix));
@@ -87,6 +95,15 @@ public sealed class EliCloudOptions
             throw new ArgumentException("Timeout 必须为正数。", nameof(Timeout));
         }
     }
+
+    /// <summary>取已配置的入口地址；未配置时抛出带正确写法的异常。</summary>
+    internal Uri RequireBaseAddress() =>
+        BaseAddress ?? throw new InvalidOperationException(BaseAddressNotConfigured);
+
+    private const string BaseAddressNotConfigured =
+        "必须配置 EliCloudOptions.BaseAddress（平台入口地址），SDK 不提供默认入口。"
+        + "例如：new EliCloudOptions { BaseAddress = new Uri(\"https://api.example.com\") }；"
+        + "若只有某个服务部署在别处，也可以只设 SsoBaseAddressOverride / McBaseAddressOverride 之类的服务级覆盖。";
 
     private static void ValidatePrefix(string prefix, string name)
     {

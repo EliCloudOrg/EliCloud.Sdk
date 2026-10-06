@@ -14,8 +14,8 @@
 #   console runner is a plain console app and does no such watching, so tests still
 #   run there. This is a host limitation, not a code problem.
 #
-# -Live targets https://api.example.com/auth by default; override with
-# ELICLOUD_LIVE_BASE.
+# -Live needs ELICLOUD_LIVE_BASE (this repository deliberately carries no real
+# deployment address) and targets <ELICLOUD_LIVE_BASE>/auth.
 #
 # NOTE: keep this file ASCII-only. PowerShell reads BOM-less .ps1 files using the
 # system ANSI codepage on some hosts, which corrupts non-ASCII text and produces
@@ -46,7 +46,17 @@ if (-not $XunitConsole) {
     $XunitConsole = Join-Path $packagesRoot 'xunit.runner.console/2.9.2/tools/net6.0'
 }
 
-if ($Live) { $env:ELICLOUD_LIVE_TESTS = '1' } else { Remove-Item env:ELICLOUD_LIVE_TESTS -ErrorAction SilentlyContinue }
+if ($Live) {
+    # This repository intentionally carries no real deployment address, so the live
+    # tests take their target from the environment.
+    if ([string]::IsNullOrWhiteSpace($env:ELICLOUD_LIVE_BASE)) {
+        throw "-Live requires ELICLOUD_LIVE_BASE, e.g. `$env:ELICLOUD_LIVE_BASE = 'https://api.example.com'."
+    }
+    $env:ELICLOUD_LIVE_TESTS = '1'
+}
+else {
+    Remove-Item env:ELICLOUD_LIVE_TESTS -ErrorAction SilentlyContinue
+}
 
 if ($Runner -eq 'dotnet') {
     $cliArgs = @('test', $project, '-c', $Configuration, '--nologo')

@@ -16,7 +16,7 @@ namespace EliCloud.Sdk;
 /// </para>
 /// <para>典型用法：</para>
 /// <code>
-/// // 1) 一次配置（不配就用默认的当前 IP 阶段地址）
+/// // 1) 一次配置：入口地址**必填**（SDK 不提供默认入口）
 /// EliCloudService.Configure(options => options.BaseAddress = new Uri("https://api.example.com"));
 ///
 /// // 2) 拿令牌
@@ -181,7 +181,7 @@ public static class EliCloudService
             throw new ArgumentException($"pathPrefix 必须以「/」开头，当前为「{pathPrefix}」。", nameof(pathPrefix));
         }
 
-        Register(serviceId, EliCloudOptions.Combine(Options.BaseAddress, pathPrefix));
+        Register(serviceId, EliCloudOptions.Combine(Options.RequireBaseAddress(), pathPrefix));
     }
 
     /// <summary>
@@ -217,7 +217,7 @@ public static class EliCloudService
     }
 
     /// <summary>
-    /// 恢复到初始状态：默认配置、自建 HttpClient、清空自定义登记。
+    /// 恢复到初始状态：入口地址变回「未配置」、丢弃自建 HttpClient、清空自定义登记。
     /// </summary>
     /// <remarks>
     /// 主要为测试与「同一进程里换环境」提供；正常应用不需要调用它。

@@ -21,10 +21,10 @@ dotnet add package EliCloud.Sdk --prerelease             # 客户端 SDK
 dotnet add package EliCloud.Sdk.AspNetCore --prerelease  # 资源服务侧（依赖上面那个）
 ```
 
-当前发布版本：**1.0.0-alpha.1**（预发布）。三点须知：
+当前发布版本：**1.0.0-alpha.2**（预发布）。三点须知：
 
 1. 预发布版不会被 `dotnet add package` 默认选中，必须加 `--prerelease`，
-   或写死 `--version 1.0.0-alpha.1`；等正式版发出后 `--prerelease` 就可以去掉。
+   或写死 `--version 1.0.0-alpha.2`；等正式版发出后 `--prerelease` 就可以去掉。
 2. nuget.org 上**同一版本号不可覆盖**（只能 unlist），所以每次发布都要换版本号：
    改 `Directory.Build.props` 的 `VersionSuffix`（预发布）或删掉它（正式版）。
 3. 包内自带本 README，nuget.org 详情页直接渲染它 —— 但其中的**相对链接**
@@ -76,8 +76,8 @@ using EliCloud.Sdk.Sso;
 
 var options = new EliCloudOptions
 {
-    // ⚠️ 阶段切换只改这一行：IP 阶段是 https://api.example.com，
-    //    域名可用后是 https://api.example.com。路径前缀与请求体都不变。
+    // ⚠️ 入口地址**必填**：SDK 不提供默认值，也不会把某次部署写进库里；
+    //    各服务基址由它加前缀派生，换环境（IP → 域名）只改这一行。
     BaseAddress = new Uri("https://api.example.com"),
 };
 
@@ -145,7 +145,7 @@ using EliCloud.Sdk;
 using EliCloud.Sdk.Mc;            // AsMc() 扩展在这个命名空间里
 using EliCloud.Sdk.Sso;           // AsSso() 扩展在这个命名空间里
 
-// 1) 一次配置（不配也能用：默认就是当前 IP 阶段的入口）
+// 1) 一次配置：入口地址**必填**
 EliCloudService.Configure(options => options.BaseAddress = new Uri("https://api.example.com"));
 
 // 2) 拿令牌
@@ -328,11 +328,14 @@ EliCloud.Sdk/
 pwsh -File eng/build.ps1                 # 生成整个解决方案
 pwsh -File eng/build.ps1 -Pack           # 另外产出 NuGet 包
 pwsh -File eng/test.ps1                  # 跑测试（标准 dotnet test）
-pwsh -File eng/test.ps1 -Live            # 额外跑打线上环境的集成测试
+pwsh -File eng/test.ps1 -Live            # 额外跑线上集成测试（需先设 ELICLOUD_LIVE_BASE）
 pwsh -File eng/test.ps1 -Runner xunit    # 用 xunit 控制台运行器（见下）
 ```
 
-当前结果：**179 个测试全绿**（173 个单元/契约 + 6 个线上冒烟，`-Live` 时）。
+> `-Live` 需要一个真实入口：仓库里**不含任何真实地址**（连默认值都没有），
+> 所以要先设置 `$env:ELICLOUD_LIVE_BASE = ...`，它才会跑那 6 个线上冒烟测试。
+
+当前结果：**182 个测试全绿**（176 个单元/契约 + 6 个线上冒烟，`-Live` 时）。
 
 ### 4.1 两个本机环境注意事项（不是代码问题）
 
@@ -352,7 +355,7 @@ pwsh -File eng/test.ps1 -Runner xunit    # 用 xunit 控制台运行器（见下
 OIDC 令牌换取**一次性、1 小时有效**的临时 key，用完即废。
 
 ```text
-push tag v1.0.0-alpha.1 ─┐
+push tag v1.0.0-alpha.2 ─┐
 Actions 页面手动触发     ─┴─→ 跑测试 → NuGet/login@v1 换临时 key → eng/publish.ps1 -Push
 ```
 
@@ -397,18 +400,30 @@ pwsh -File eng/publish.ps1 -VersionSuffix beta.1  # 换个预发布号试打包
 - 版本号写在 `Directory.Build.props`；nuget.org 上同一版本号**不可覆盖**（只能 unlist），
   所以每次发布都要换版本号。
 
+### 4.3 关于「真实地址」的约定
+
+**仓库里不出现任何真实部署地址**（IP 或域名），文档、示例、测试、默认值都不例外：
+
+- 代码层面：`EliCloudOptions.BaseAddress` **没有默认值**，未配置就抛异常并给出写法。
+  早期版本曾以某个具体地址作默认值 —— 那等于把一次部署（连同它的 IP）编译进 DLL，
+  并随包页公开在 nuget.org 上。已彻底移除，这也是入口地址变成必填项的原因。
+- 文档与示例统一用保留域名 `https://api.example.com`，测试统一用 `https://elicloud.test`。
+- 线上集成测试的目标只能由 `ELICLOUD_LIVE_BASE` 环境变量提供。
+- `1.0.0-alpha.1` 是那次失误的产物：已从 nuget.org unlist，请用 `1.0.0-alpha.2` 及以后。
+
 ---
 
 ## 5. 使用指南
 
 ### 5.1 连接配置与「IP 阶段 → 域名阶段」
 
-平台把「对外地址」做成环境变量，代码里零硬编码。SDK 侧同样如此：
+平台把「对外地址」做成环境变量，代码里零硬编码。SDK 侧同样如此 —— 而且**连默认值都没有**：
+`BaseAddress` 必填，不配就报错，错误信息里直接给出写法。
 
 ```csharp
 new EliCloudOptions
 {
-    BaseAddress = new Uri("https://api.example.com"),   // 域名阶段改成 https://api.example.com
+    BaseAddress = new Uri("https://api.example.com"),   // 换成你的平台入口
     // 各服务前缀默认 /auth、/mc、/core，一般不用改
 }
 ```

@@ -345,9 +345,9 @@ public sealed class TokenValidationTests
     [Fact]
     public void JwksUri_DerivesFromIssuerByPlatformConvention()
     {
-        var options = new EliCloudTokenValidationOptions { Issuer = "https://api.example.com/auth/" };
+        var options = new EliCloudTokenValidationOptions { Issuer = "https://elicloud.test/auth/" };
 
-        Assert.Equal("https://api.example.com/auth/.well-known/jwks.json", options.ResolveJwksUri().AbsoluteUri);
+        Assert.Equal("https://elicloud.test/auth/.well-known/jwks.json", options.ResolveJwksUri().AbsoluteUri);
     }
 
     [Fact]
@@ -355,7 +355,7 @@ public sealed class TokenValidationTests
     {
         var options = new EliCloudTokenValidationOptions
         {
-            Issuer = "https://api.example.com/auth",
+            Issuer = "https://elicloud.test/auth",
             JwksUri = "https://other.example/jwks.json",
         };
 

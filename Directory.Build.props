@@ -38,12 +38,11 @@
     <Copyright>Copyright (c) 2026 EliCloud</Copyright>
     <VersionPrefix>1.0.0</VersionPrefix>
     <!--
-      首发走预发布通道：nuget.org 上同一版本号**不可覆盖**，只能 unlist，
-      所以先用 1.0.0-alpha.1 占住 id 并验证端到端安装，确认无误后再发正式版。
-      发 1.0.0 正式版 = 删掉（或注释掉）下面这行；换别的预发布号用
-      `dotnet pack -p:VersionSuffix=beta.1`（命令行属性优先于本行）。
+      预发布通道：nuget.org 上同一版本号**不可覆盖**，只能 unlist，所以每次发布都要换版本号。
+      发正式版 = 删掉（或注释掉）下面这行；临时换号用 `dotnet pack -p:VersionSuffix=beta.1`
+      （命令行属性优先于本行）。
     -->
-    <VersionSuffix>alpha.1</VersionSuffix>
+    <VersionSuffix>alpha.2</VersionSuffix>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <!-- 产物集中到 artifacts/packages，推包脚本照着这个目录找，不猜 bin/ 路径。 -->

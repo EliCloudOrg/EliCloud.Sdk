@@ -229,15 +229,15 @@ public sealed class SsoPrivateEndpointTests
     [Fact]
     public async Task Discovery_ParsesLiveDocumentShape()
     {
-        // 这段 JSON 逐字取自线上 https://api.example.com/auth/.well-known/openid-configuration
+        // 这段 JSON 逐字取自线上 https://elicloud.test/auth/.well-known/openid-configuration
         const string live = """
-        {"issuer":"https://api.example.com/auth",
-         "authorization_endpoint":"https://api.example.com/auth/authorize",
-         "token_endpoint":"https://api.example.com/auth/token",
-         "userinfo_endpoint":"https://api.example.com/auth/userinfo",
-         "jwks_uri":"https://api.example.com/auth/.well-known/jwks.json",
-         "device_authorization_endpoint":"https://api.example.com/auth/device_authorization",
-         "end_session_endpoint":"https://api.example.com/auth/logout",
+        {"issuer":"https://elicloud.test/auth",
+         "authorization_endpoint":"https://elicloud.test/auth/authorize",
+         "token_endpoint":"https://elicloud.test/auth/token",
+         "userinfo_endpoint":"https://elicloud.test/auth/userinfo",
+         "jwks_uri":"https://elicloud.test/auth/.well-known/jwks.json",
+         "device_authorization_endpoint":"https://elicloud.test/auth/device_authorization",
+         "end_session_endpoint":"https://elicloud.test/auth/logout",
          "response_types_supported":["code"],
          "response_modes_supported":["query"],
          "grant_types_supported":["authorization_code","refresh_token","urn:ietf:params:oauth:grant-type:device_code"],
@@ -257,13 +257,13 @@ public sealed class SsoPrivateEndpointTests
 
         // 逐字段断言：只抽查几项的话，「策略推断名与线缆名不一致」这类问题会漏掉
         // （userinfo_endpoint 就这么漏过一次，最后是线上集成测试抓出来的）。
-        Assert.Equal("https://api.example.com/auth", document.Issuer);
-        Assert.Equal("https://api.example.com/auth/authorize", document.AuthorizationEndpoint);
-        Assert.Equal("https://api.example.com/auth/token", document.TokenEndpoint);
-        Assert.Equal("https://api.example.com/auth/userinfo", document.UserInfoEndpoint);
-        Assert.Equal("https://api.example.com/auth/.well-known/jwks.json", document.JwksUri);
-        Assert.Equal("https://api.example.com/auth/device_authorization", document.DeviceAuthorizationEndpoint);
-        Assert.Equal("https://api.example.com/auth/logout", document.EndSessionEndpoint);
+        Assert.Equal("https://elicloud.test/auth", document.Issuer);
+        Assert.Equal("https://elicloud.test/auth/authorize", document.AuthorizationEndpoint);
+        Assert.Equal("https://elicloud.test/auth/token", document.TokenEndpoint);
+        Assert.Equal("https://elicloud.test/auth/userinfo", document.UserInfoEndpoint);
+        Assert.Equal("https://elicloud.test/auth/.well-known/jwks.json", document.JwksUri);
+        Assert.Equal("https://elicloud.test/auth/device_authorization", document.DeviceAuthorizationEndpoint);
+        Assert.Equal("https://elicloud.test/auth/logout", document.EndSessionEndpoint);
 
         Assert.Equal(["code"], document.ResponseTypesSupported!);
         Assert.Equal(["query"], document.ResponseModesSupported!);

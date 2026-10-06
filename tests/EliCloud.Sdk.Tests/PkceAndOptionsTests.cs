@@ -145,14 +145,25 @@ public sealed class EliCloudOptionsTests
     }
 
     [Fact]
-    public void Validate_AcceptsPhaseSwitchToDomain()
+    public void Validate_RejectsMissingBaseAddress()
     {
-        // IP 阶段 → 域名阶段：只改 BaseAddress，其他一切不变（平台硬约束：代码零改动）
-        var options = TestHttp.TestOptions.Create(o => o.BaseAddress = new Uri("https://api.example.com"));
+        // 入口地址没有默认值：没配就报错，而且错误信息要能直接教人怎么配。
+        var options = new EliCloudOptions();
+
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
+
+        Assert.Contains("BaseAddress", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_AcceptsAnyAbsoluteEntryAddress()
+    {
+        // 换环境（IP 阶段 → 域名阶段）只改 BaseAddress，路径前缀与其它配置一个字不动。
+        var options = TestHttp.TestOptions.Create(o => o.BaseAddress = new Uri("https://elicloud.test/gateway"));
 
         options.Validate();
 
-        Assert.Equal("https://api.example.com/auth/", options.SsoBaseAddress.AbsoluteUri);
+        Assert.Equal("https://elicloud.test/gateway/auth/", options.SsoBaseAddress.AbsoluteUri);
     }
 }
 

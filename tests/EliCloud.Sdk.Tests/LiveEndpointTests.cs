@@ -8,18 +8,24 @@ namespace EliCloud.Sdk.Tests;
 /// 「打真实环境」的集成测试开关。
 /// </summary>
 /// <remarks>
-/// 默认**不跑**：单元/契约测试已经覆盖了请求形状与解析逻辑，而这一组要求能直连线上地址
-/// （当前是 <c>https://api.example.com/auth</c>）。它在 CI 或受限网络里会变成假失败，
-/// 所以设计成显式开启：
+/// 默认**不跑**：单元/契约测试已经覆盖了请求形状与解析逻辑，而这一组要求能直连一个真实入口。
+/// 仓库里**不含任何真实地址**（连默认值都没有），并且它在 CI 或受限网络里会变成假失败，
+/// 所以设计成必须由外部显式开启：
 /// <code>ELICLOUD_LIVE_TESTS=1 ELICLOUD_LIVE_BASE=https://api.example.com</code>
 /// </remarks>
 internal static class LiveEnvironment
 {
+    /// <summary>
+    /// 两个环境变量都要给：<c>ELICLOUD_LIVE_TESTS=1</c> 打开开关，<c>ELICLOUD_LIVE_BASE</c> 指定目标入口。
+    /// </summary>
     internal static bool Enabled =>
-        string.Equals(Environment.GetEnvironmentVariable("ELICLOUD_LIVE_TESTS"), "1", StringComparison.Ordinal);
+        string.Equals(Environment.GetEnvironmentVariable("ELICLOUD_LIVE_TESTS"), "1", StringComparison.Ordinal)
+        && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ELICLOUD_LIVE_BASE"));
 
     internal static Uri BaseAddress => new(
-        Environment.GetEnvironmentVariable("ELICLOUD_LIVE_BASE") ?? "https://api.example.com");
+        Environment.GetEnvironmentVariable("ELICLOUD_LIVE_BASE")
+        ?? throw new InvalidOperationException(
+            "线上集成测试需要显式设置 ELICLOUD_LIVE_BASE（仓库里不含任何真实地址），例如 https://api.example.com。"));
 
     internal static HttpClient CreateHttpClient(int timeoutSeconds = 30) => new()
     {
@@ -33,7 +39,7 @@ internal static class LiveEnvironment
     };
 }
 
-/// <summary>只在开启 <c>ELICLOUD_LIVE_TESTS=1</c> 时才执行的测试。</summary>
+/// <summary>只在同时给了 <c>ELICLOUD_LIVE_TESTS=1</c> 与 <c>ELICLOUD_LIVE_BASE</c> 时才执行的测试。</summary>
 public sealed class LiveFactAttribute : FactAttribute
 {
     /// <summary>创建特性；未开启时把测试标记为跳过。</summary>
@@ -41,7 +47,8 @@ public sealed class LiveFactAttribute : FactAttribute
     {
         if (!LiveEnvironment.Enabled)
         {
-            Skip = "线上集成测试默认跳过；设置 ELICLOUD_LIVE_TESTS=1 后运行（需要能直连 " + LiveEnvironment.BaseAddress + "）。";
+            Skip = "线上集成测试默认跳过；需要同时设置 ELICLOUD_LIVE_TESTS=1 与 ELICLOUD_LIVE_BASE=<目标入口>"
+                + "（仓库里不含任何真实地址），并保证本机能直连该地址。";
         }
     }
 }

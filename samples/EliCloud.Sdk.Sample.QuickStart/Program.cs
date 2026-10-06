@@ -11,8 +11,14 @@ using EliCloud.Sdk;
 using EliCloud.Sdk.Sso;
 
 // ── 1) 一次配置 ───────────────────────────────────────────────────────────
-// 不配也能用（默认就是当前 IP 阶段的入口）。阶段切到域名时只改这一行。
-var baseAddress = Environment.GetEnvironmentVariable("ELICLOUD_BASE") ?? "https://api.example.com";
+// 入口地址是**必填项**：SDK 不提供默认入口，也不会把某一次部署写死进库里。
+var baseAddress = Environment.GetEnvironmentVariable("ELICLOUD_BASE");
+if (string.IsNullOrWhiteSpace(baseAddress))
+{
+    Console.Error.WriteLine("请先设置 ELICLOUD_BASE，例如：$env:ELICLOUD_BASE = 'https://api.example.com'");
+    return 1;
+}
+
 EliCloudService.Configure(options => options.BaseAddress = new Uri(baseAddress));
 
 // ── 2) 取服务 ─────────────────────────────────────────────────────────────
@@ -60,3 +66,5 @@ catch (EliCloudApiException exception)
 // 所以这里只展示它的地址，不发请求；服务上线后上面第 4 步的注释代码即可直接工作。
 Console.WriteLine();
 Console.WriteLine($"MC 白名单健康检查地址: {EliCloudService.Mc.HealthEndpoint}（服务待部署）");
+
+return 0;

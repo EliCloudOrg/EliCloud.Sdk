@@ -53,7 +53,7 @@ public static class EliCloudServiceCollectionExtensions
                         return false;
                     }
                 },
-                "EliCloudOptions 配置不合法：BaseAddress 必须是绝对 URI，路径前缀必须以「/」开头。");
+                "EliCloudOptions 配置不合法：必须提供绝对的 BaseAddress（SDK 不提供默认入口），路径前缀必须以「/」开头。");
 
         services.TryAddSingleton(CreateHttpClient);
 

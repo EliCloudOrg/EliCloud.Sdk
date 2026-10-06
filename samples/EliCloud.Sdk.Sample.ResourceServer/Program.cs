@@ -22,11 +22,17 @@ using EliCloud.Sdk.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// issuer 必须与服务端的 PUBLIC_BASE_URL 逐字相同（当前 IP 阶段是 …/auth）。
-// 域名上线后只改这一处配置，代码不动。
+// issuer 必须与服务端的 PUBLIC_BASE_URL 逐字相同（含服务前缀，例如 …/auth）。
+// 这里同样不给默认值：写死一个地址就等于把它公开在仓库里。
 var issuer = builder.Configuration["EliCloud:Issuer"]
-    ?? Environment.GetEnvironmentVariable("ELICLOUD_ISSUER")
-    ?? "https://api.example.com/auth";
+    ?? Environment.GetEnvironmentVariable("ELICLOUD_ISSUER");
+
+if (string.IsNullOrWhiteSpace(issuer))
+{
+    throw new InvalidOperationException(
+        "必须提供 issuer：配置项 EliCloud:Issuer 或环境变量 ELICLOUD_ISSUER，"
+        + "取值要与服务端的 PUBLIC_BASE_URL 逐字相同，例如 https://api.example.com/auth。");
+}
 
 builder.Services.AddEliCloudAuthentication(options =>
 {

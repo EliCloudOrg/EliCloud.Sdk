@@ -409,7 +409,9 @@ pwsh -File eng/publish.ps1 -VersionSuffix beta.1  # 换个预发布号试打包
   并随包页公开在 nuget.org 上。已彻底移除，这也是入口地址变成必填项的原因。
 - 文档与示例统一用保留域名 `https://api.example.com`，测试统一用 `https://elicloud.test`。
 - 线上集成测试的目标只能由 `ELICLOUD_LIVE_BASE` 环境变量提供。
-- `1.0.0-alpha.1` 是那次失误的产物：已从 nuget.org unlist，请用 `1.0.0-alpha.2` 及以后。
+- `1.0.0-alpha.1` 是那次失误的产物，**不要再使用**：请用 `1.0.0-alpha.2` 及以后。
+  它已在 nuget.org 上被 unlist；注意 nuget.org **不支持删除包**，unlist 只是让它不再出现在
+  搜索结果与版本列表里，按精确版本仍可下载，其包内容（内含当时的 README）也无法追回。
 
 ---
 

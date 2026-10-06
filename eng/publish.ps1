@@ -97,14 +97,30 @@ if (-not $Push) {
     exit 0
 }
 
-# Push main packages first, then symbols: consumers should never see a snupkg
-# whose nupkg failed to publish.
+# Main packages first, symbols second: a consumer must never see a snupkg whose
+# nupkg failed to publish. `dotnet nuget push` pushes a sibling .snupkg by itself,
+# so nupkg pushes pass --no-symbols and the symbol packages are pushed explicitly
+# afterwards - that way every file is pushed exactly once.
 $ordered = @($fresh | Where-Object { $_.Extension -eq '.nupkg' }) +
            @($fresh | Where-Object { $_.Extension -eq '.snupkg' })
 
 foreach ($file in $ordered) {
-    $arguments = @('nuget', 'push', $file.FullName, '--source', $Source, '--nologo')
-    if (-not [string]::IsNullOrWhiteSpace($ApiKey)) { $arguments += @('--api-key', $ApiKey) }
+    # NOTE: `dotnet nuget push` has NO --nologo. An unknown switch is parsed as
+    # another package PATH, so the command uploads the real package and then dies
+    # with "File does not exist (--nologo)".
+    $arguments = @('nuget', 'push', $file.FullName, '--source', $Source)
+    if ($file.Extension -eq '.nupkg') {
+        $arguments += '--no-symbols'
+        if (-not [string]::IsNullOrWhiteSpace($ApiKey)) { $arguments += @('--api-key', $ApiKey) }
+    }
+    else {
+        # A .snupkg goes to the symbol endpoint, which looks for its own key.
+        if (-not [string]::IsNullOrWhiteSpace($ApiKey)) {
+            $arguments += @('--api-key', $ApiKey, '--symbol-api-key', $ApiKey)
+        }
+    }
+    # Also makes a re-run of the same version a no-op instead of a 409 failure,
+    # which is what lets a half-finished release be resumed.
     if ($SkipDuplicate) { $arguments += '--skip-duplicate' }
 
     Write-Host ''

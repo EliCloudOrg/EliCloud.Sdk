@@ -82,6 +82,9 @@ jobs:
             '-File', 'eng/publish.ps1',
             '-Configuration', 'Release',
             '-Push',
+            # Re-running a release must be a no-op, not a 409: this also lets a
+            # half-finished publish (one package up, one not) be resumed.
+            '-SkipDuplicate',
             '-ExpectedVersion', '${{ steps.meta.outputs.expected }}',
             '-VersionSuffix', '${{ inputs.version_suffix }}'
           )

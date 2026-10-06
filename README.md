@@ -380,11 +380,20 @@ pwsh -File eng/publish.ps1 -VersionSuffix beta.1  # 换个预发布号试打包
 几条不变的约定：
 
 - 产物固定落在 `artifacts/packages/`：两个 `.nupkg` + 两个 `.snupkg`（符号包）。
+- 包内带 README 与 XML 文档注释；符号包提供 PDB，PDB 里还嵌了 SourceLink 映射
+  （`raw.githubusercontent.com/EliCloudOrg/EliCloud.Sdk/<commit>/*`），所以在调试器里能
+  直接单步进 SDK 源码。仓库地址由 SDK 内置的 git 目标从 `origin` 推导，不写死在配置里；
+  `PublishRepositoryUrl=true` 决定它是否写进包元数据（nuspec 的 `<repository url>`）。
 - 打包前脚本会**清空** `artifacts/packages/`。`dotnet pack` 是增量的：输出已存在且比输入新时
   整个 PackTask 会被跳过，「按时间戳挑本次产物」会挑空、甚至误推上一次的包。清空之后
   「目录里的一切」必然等于「本次的产物」。
 - `-ExpectedVersion` 让版本对不上时**在推送前**失败（见上面的 tag 约定）。
-- 先推主包再推符号包：不会出现符号包上线而主包没上线。
+- 主包推送显式带 `--no-symbols`、符号包再单独推：`dotnet nuget push` 本来就会自动带上同目录的
+  `.snupkg`，不隔离就会重复上传。顺序照旧是主包在前，不会出现符号包上线而主包没上线。
+  （注意 `dotnet nuget push` **没有** `--nologo` 选项：未知开关会被当成又一个包路径，
+  结果是包推上去了、命令却报 `File does not exist (--nologo)` 退出。）
+- 重跑同一次发布是安全的：workflow 带 `-SkipDuplicate`，已存在的版本被跳过而不是 409 报错，
+  半失败的发布（一个包上去了、一个没上去）可以原样重跑续完。
 - 版本号写在 `Directory.Build.props`；nuget.org 上同一版本号**不可覆盖**（只能 unlist），
   所以每次发布都要换版本号。
 

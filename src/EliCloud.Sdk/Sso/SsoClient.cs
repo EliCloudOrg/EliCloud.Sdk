@@ -23,7 +23,8 @@ namespace EliCloud.Sdk.Sso;
 ///     的开发联调，或平台内网脚本用。它绕过了浏览器与 PKCE。
 ///   </description></item>
 ///   <item><description>
-///     <b>注册与 UserInfo</b>（<see cref="RegisterAsync"/>、<see cref="GetUserInfoAsync"/>）。
+///     <b>注册与 UserInfo</b>（<see cref="StartRegistrationAsync"/>、
+///     <see cref="GetRegistrationStatusAsync"/>、<see cref="GetUserInfoAsync"/>）。
 ///   </description></item>
 /// </list>
 /// <para>
@@ -84,6 +85,15 @@ public sealed class SsoClient
     /// <summary>私有注册端点（对外形态 <c>/auth/register</c>）。</summary>
     public Uri RegisterEndpoint => new(_baseAddress, "register");
 
+    /// <summary>注册状态查询端点。</summary>
+    public Uri RegisterStatusEndpoint => new(_baseAddress, "register/status");
+
+    /// <summary>重发验证邮件端点。</summary>
+    public Uri RegisterResendEndpoint => new(_baseAddress, "register/resend");
+
+    /// <summary>取消待验证注册端点。</summary>
+    public Uri RegisterCancelEndpoint => new(_baseAddress, "register/cancel");
+
     /// <summary>私有登录端点（对外形态 <c>/auth/login</c>）。</summary>
     public Uri LoginEndpoint => new(_baseAddress, "login");
 
@@ -140,20 +150,27 @@ public sealed class SsoClient
     // ------------------------------------------------------ 私有端点（密码直连）
 
     /// <summary>
-    /// 注册账号（<c>POST {base}/register</c>）。
+    /// 发起注册（<c>POST {base}/register</c>）：返回待验证注册，而不是账号。
     /// </summary>
+    /// <remarks>
+    /// 服务端会向 <paramref name="email"/> 发送确认邮件。调用方应保存
+    /// <see cref="RegistrationPending.RegistrationId"/>，轮询
+    /// <see cref="GetRegistrationStatusAsync"/>；确认后账号才会创建。
+    /// </remarks>
     /// <exception cref="EliCloudApiException">
-    /// 用户名/邮箱冲突（<c>user_exists</c> / <c>email_exists</c>）、未开放自助注册
-    /// （<c>registration_disabled</c>）、密码强度不足（<c>invalid_request</c>）。
+    /// 用户名/邮箱冲突（<c>user_exists</c> / <c>email_exists</c> / <c>registration_pending</c>）、
+    /// 未开放自助注册（<c>registration_disabled</c>）、密码强度不足（<c>invalid_request</c>）、
+    /// 邮件发送失败（<c>email_delivery_failed</c> / <c>email_service_unavailable</c>）。
     /// </exception>
-    public async Task<EliCloudUser> RegisterAsync(
+    public async Task<RegistrationPending> StartRegistrationAsync(
         string username,
         string password,
-        string? email = null,
+        string email,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(username);
         ArgumentException.ThrowIfNullOrEmpty(password);
+        ArgumentException.ThrowIfNullOrEmpty(email);
 
         var payload = new RegisterRequest(username, password, email);
         var response = await _transport
@@ -161,10 +178,60 @@ public sealed class SsoClient
             .ConfigureAwait(false);
         response.EnsureSuccess();
 
-        var envelope = response.Deserialize<RegisterEnvelope>();
-        return envelope?.User
+        return response.Deserialize<RegistrationPending>()
             ?? throw new EliCloudMalformedResponseException(
-                $"注册响应缺少 user 字段：{RegisterEndpoint}", RegisterEndpoint, response.Body);
+                $"注册响应不是合法 JSON：{RegisterEndpoint}", RegisterEndpoint, response.Body);
+    }
+
+    /// <summary>查询待验证注册的状态（<c>POST {base}/register/status</c>）。</summary>
+    public async Task<RegistrationStatus> GetRegistrationStatusAsync(
+        string registrationId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(registrationId);
+
+        var payload = new RegistrationRef(registrationId);
+        var response = await _transport
+            .SendJsonAsync(HttpMethod.Post, RegisterStatusEndpoint, payload, null, cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccess();
+
+        return response.Deserialize<RegistrationStatus>()
+            ?? throw new EliCloudMalformedResponseException(
+                $"注册状态响应不是合法 JSON：{RegisterStatusEndpoint}", RegisterStatusEndpoint, response.Body);
+    }
+
+    /// <summary>重发验证邮件（<c>POST {base}/register/resend</c>）。</summary>
+    public async Task<RegistrationPending> ResendRegistrationEmailAsync(
+        string registrationId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(registrationId);
+
+        var payload = new RegistrationRef(registrationId);
+        var response = await _transport
+            .SendJsonAsync(HttpMethod.Post, RegisterResendEndpoint, payload, null, cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccess();
+
+        return response.Deserialize<RegistrationPending>()
+            ?? throw new EliCloudMalformedResponseException(
+                $"重发响应不是合法 JSON：{RegisterResendEndpoint}", RegisterResendEndpoint, response.Body);
+    }
+
+    /// <summary>取消待验证注册（<c>POST {base}/register/cancel</c>）。</summary>
+    /// <remarks>已验证的账号返回 <c>already_verified</c>；不存在/已取消按幂等成功处理。</remarks>
+    public async Task CancelRegistrationAsync(
+        string registrationId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(registrationId);
+
+        var payload = new RegistrationRef(registrationId);
+        var response = await _transport
+            .SendJsonAsync(HttpMethod.Post, RegisterCancelEndpoint, payload, null, cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccess();
     }
 
     /// <summary>
@@ -528,16 +595,13 @@ public sealed class SsoClient
     // 字段名靠 EliCloudJson 的 snake_case 策略统一映射，这里不逐个标 [JsonPropertyName]：
     // 策略式映射是整体一致的，逐字段标注则漏标一个就静默失配。
 
-    private sealed record RegisterRequest(string Username, string Password, string? Email);
+    private sealed record RegisterRequest(string Username, string Password, string Email);
+
+    private sealed record RegistrationRef(string RegistrationId);
 
     private sealed record LoginRequest(string Username, string Password);
 
     private sealed record RefreshRequest(string RefreshToken);
-
-    private sealed class RegisterEnvelope
-    {
-        public EliCloudUser? User { get; init; }
-    }
 }
 
 /// <summary>设备流程轮询的一次结果。</summary>

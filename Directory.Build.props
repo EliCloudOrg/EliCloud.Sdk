@@ -42,7 +42,7 @@
       发正式版 = 删掉（或注释掉）下面这行；临时换号用 `dotnet pack -p:VersionSuffix=beta.1`
       （命令行属性优先于本行）。
     -->
-    <VersionSuffix>alpha.2</VersionSuffix>
+    <VersionSuffix>alpha.3</VersionSuffix>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <!-- 产物集中到 artifacts/packages，推包脚本照着这个目录找，不猜 bin/ 路径。 -->

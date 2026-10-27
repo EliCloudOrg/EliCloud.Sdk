@@ -77,6 +77,27 @@ public static class EliCloudErrorCodes
     /// <summary>注册：平台关闭了自助注册。</summary>
     public const string RegistrationDisabled = "registration_disabled";
 
+    /// <summary>注册：同一用户名/邮箱已有待验证注册，用原密码继续或稍后再试。</summary>
+    public const string RegistrationPending = "registration_pending";
+
+    /// <summary>注册：找不到该 registration_id（已取消/已清理）。</summary>
+    public const string RegistrationNotFound = "registration_not_found";
+
+    /// <summary>注册：验证链接已过期，需要重新发起。</summary>
+    public const string RegistrationExpired = "registration_expired";
+
+    /// <summary>注册/重发：该邮箱已经完成验证，直接登录即可。</summary>
+    public const string AlreadyVerified = "already_verified";
+
+    /// <summary>登录：密码正确，但邮箱还没有验证。</summary>
+    public const string EmailNotVerified = "email_not_verified";
+
+    /// <summary>注册：email 服务报告邮件发送失败。</summary>
+    public const string EmailDeliveryFailed = "email_delivery_failed";
+
+    /// <summary>注册：email 服务不可用或未配置。</summary>
+    public const string EmailServiceUnavailable = "email_service_unavailable";
+
     /// <summary>限流（SSO 私有端点的写法，语义等同 <see cref="RateLimited"/>）。</summary>
     public const string TooManyRequests = "too_many_requests";
 
@@ -155,6 +176,9 @@ public sealed class EliCloudApiException : Exception
 
     /// <summary>是否为「令牌无效」——通常意味着需要重新登录或刷新。</summary>
     public bool IsInvalidToken => Error == EliCloudErrorCodes.InvalidToken;
+
+    /// <summary>是否为「密码正确但邮箱未验证」——调用方应引导用户完成邮箱确认。</summary>
+    public bool IsEmailNotVerified => Error == EliCloudErrorCodes.EmailNotVerified;
 
     /// <summary>是否为限流。</summary>
     public bool IsRateLimited =>

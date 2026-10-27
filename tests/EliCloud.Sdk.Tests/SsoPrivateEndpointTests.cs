@@ -13,13 +13,16 @@ namespace EliCloud.Sdk.Tests;
 public sealed class SsoPrivateEndpointTests
 {
     [Fact]
-    public async Task Register_PostsExpectedShapeAndParsesUser()
+    public async Task StartRegistration_PostsExpectedShapeAndParsesPending()
     {
         var handler = new CapturingHandler(_ => Stub.Json(
-            """{"user":{"id":"user_0001","username":"alice","email":"alice@example.com","created_at":"2026-01-01T00:00:00Z"}}""",
-            HttpStatusCode.Created));
+            """
+            {"registration_id":"reg_abc","status":"pending","email_masked":"a***@example.com",
+             "expires_at":"2026-01-01T00:15:00Z","resend_after":60}
+            """,
+            HttpStatusCode.Accepted));
 
-        var user = await CreateClient(handler).RegisterAsync("alice", "S3cret!pass", "alice@example.com");
+        var pending = await CreateClient(handler).StartRegistrationAsync("alice", "S3cret!pass", "alice@example.com");
 
         var request = handler.Single();
         Assert.Equal("POST", request.Method);
@@ -30,34 +33,65 @@ public sealed class SsoPrivateEndpointTests
         Assert.Equal("S3cret!pass", body["password"]);
         Assert.Equal("alice@example.com", body["email"]);
 
-        Assert.Equal("user_0001", user.Id);
-        Assert.Equal("alice", user.Username);
-        Assert.Equal("alice@example.com", user.Email);
+        Assert.Equal("reg_abc", pending.RegistrationId);
+        Assert.Equal("pending", pending.Status);
+        Assert.Equal("a***@example.com", pending.EmailMasked);
+        Assert.Equal(60, pending.ResendAfter);
     }
 
     [Fact]
-    public async Task Register_OmitsEmailWhenNotProvided()
-    {
-        var handler = new CapturingHandler(_ => Stub.Json("""{"user":{"id":"user_0002","username":"bob"}}""", HttpStatusCode.Created));
-
-        await CreateClient(handler).RegisterAsync("bob", "S3cret!pass");
-
-        // 服务端对未知字段返回 400，所以可选字段必须真的被省略，而不是写成 null。
-        Assert.DoesNotContain("email", handler.Single().JsonFields().Keys);
-    }
-
-    [Fact]
-    public async Task Register_MapsConflictToApiException()
+    public async Task StartRegistration_MapsConflictToApiException()
     {
         var handler = new CapturingHandler(_ => Stub.Error(
             HttpStatusCode.Conflict, EliCloudErrorCodes.UserExists, "该用户名已被占用"));
 
         var exception = await Assert.ThrowsAsync<EliCloudApiException>(
-            () => CreateClient(handler).RegisterAsync("alice", "S3cret!pass"));
+            () => CreateClient(handler).StartRegistrationAsync("alice", "S3cret!pass", "alice@example.com"));
 
         Assert.Equal(409, exception.StatusCode);
         Assert.Equal(EliCloudErrorCodes.UserExists, exception.Error);
         Assert.Equal("该用户名已被占用", exception.ErrorDescription);
+    }
+
+    [Fact]
+    public async Task RegistrationStatus_And_Resend_UseTheExpectedPaths()
+    {
+        var handler = new CapturingHandler(request => request.Path.EndsWith("/status", StringComparison.Ordinal)
+            ? Stub.Json(
+                """
+                {"registration_id":"reg_abc","status":"verified","email_masked":"a***@example.com",
+                 "expires_at":"2026-01-01T00:15:00Z","resend_after":0,
+                 "user":{"id":"user_0001","username":"alice","email":"alice@example.com","email_verified":true}}
+                """)
+            : Stub.Json(
+                """
+                {"registration_id":"reg_abc","status":"pending","email_masked":"a***@example.com",
+                 "expires_at":"2026-01-01T00:20:00Z","resend_after":60}
+                """,
+                HttpStatusCode.Accepted));
+
+        var client = CreateClient(handler);
+        var status = await client.GetRegistrationStatusAsync("reg_abc");
+        Assert.Equal("/auth/register/status", handler.Captured[0].Path);
+        Assert.True(status.IsVerified);
+        Assert.True(status.User?.EmailVerified);
+
+        var resent = await client.ResendRegistrationEmailAsync("reg_abc");
+        Assert.Equal("/auth/register/resend", handler.Captured[1].Path);
+        Assert.Equal("reg_abc", resent.RegistrationId);
+    }
+
+    [Fact]
+    public async Task CancelRegistration_UsesTheExpectedPath()
+    {
+        var handler = new CapturingHandler(_ => Stub.NoContent());
+
+        await CreateClient(handler).CancelRegistrationAsync("reg_abc");
+
+        var request = handler.Single();
+        Assert.Equal("POST", request.Method);
+        Assert.Equal("/auth/register/cancel", request.Path);
+        Assert.Equal("reg_abc", request.JsonFields()["registration_id"]);
     }
 
     [Fact]

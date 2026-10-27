@@ -43,6 +43,16 @@ public static class EliCloudScopes
     /// <summary>MC 白名单服务的必需 scope；缺失时该服务返回 <c>403 insufficient_scope</c>。</summary>
     public const string McWhitelist = "mc:whitelist";
 
+    /// <summary>
+    /// 文件服务的读权限：读取自己的文件、被授权的 <c>protected</c> 文件与 <c>public</c> 文件。
+    /// </summary>
+    public const string FilesRead = "files:read";
+
+    /// <summary>
+    /// 文件服务的写权限：上传、删除、改可见性、授权 / 撤权。
+    /// </summary>
+    public const string FilesWrite = "files:write";
+
     /// <summary>把若干 scope 拼成协议要求的空格分隔形式。</summary>
     public static string Join(IEnumerable<string> scopes) => string.Join(' ', scopes);
 

@@ -86,8 +86,88 @@ public sealed class EliCloudUser
     /// <summary>邮箱（可空）。</summary>
     public string? Email { get; init; }
 
+    /// <summary>邮箱是否已验证。历史账号/管理员建号可能为 <c>false</c>。</summary>
+    public bool? EmailVerified { get; init; }
+
     /// <summary>创建时间（ISO8601 UTC）。</summary>
     public string? CreatedAt { get; init; }
+}
+
+/// <summary>注册状态值。</summary>
+public static class RegistrationStatuses
+{
+    /// <summary>等待用户点击邮件里的确认按钮。</summary>
+    public const string Pending = "pending";
+
+    /// <summary>邮箱已确认，账号已创建。</summary>
+    public const string Verified = "verified";
+
+    /// <summary>验证链接已过期或被拒绝。</summary>
+    public const string Expired = "expired";
+
+    /// <summary>邮件发送失败或最终建号冲突。</summary>
+    public const string Failed = "failed";
+}
+
+/// <summary>
+/// 一次待邮箱验证的注册（<c>POST {base}/register</c> 与 <c>resend</c> 的响应）。
+/// </summary>
+/// <remarks>
+/// <see cref="RegistrationId"/> 是状态查询/重发/取消的 capability，不要当用户 ID 存库。
+/// 邮箱以掩码返回；完整邮箱由调用方自己保存的输入值提供。
+/// </remarks>
+public sealed class RegistrationPending
+{
+    /// <summary>注册 ID，形如 <c>reg_...</c>。</summary>
+    public string RegistrationId { get; init; } = string.Empty;
+
+    /// <summary>状态；创建/重发后固定为 <c>pending</c>。</summary>
+    public string Status { get; init; } = RegistrationStatuses.Pending;
+
+    /// <summary>掩码邮箱，如 <c>a***@example.com</c>。</summary>
+    public string? EmailMasked { get; init; }
+
+    /// <summary>验证链接过期时间（ISO8601 UTC）。</summary>
+    public string? ExpiresAt { get; init; }
+
+    /// <summary>距离可以重发验证邮件的秒数。</summary>
+    public int ResendAfter { get; init; }
+}
+
+/// <summary>状态查询（<c>POST {base}/register/status</c>）的响应。</summary>
+public sealed class RegistrationStatus
+{
+    /// <summary>注册 ID。</summary>
+    public string RegistrationId { get; init; } = string.Empty;
+
+    /// <summary>见 <see cref="RegistrationStatuses"/>。</summary>
+    public string Status { get; init; } = string.Empty;
+
+    /// <summary>掩码邮箱。</summary>
+    public string? EmailMasked { get; init; }
+
+    /// <summary>验证链接过期时间（ISO8601 UTC）。</summary>
+    public string? ExpiresAt { get; init; }
+
+    /// <summary>距离可以重发验证邮件的秒数。</summary>
+    public int ResendAfter { get; init; }
+
+    /// <summary>仅在 <c>verified</c> 时返回的账号。</summary>
+    public EliCloudUser? User { get; init; }
+
+    /// <summary>expired/failed 时的原因，如 <c>timeout</c>、<c>username_taken</c>。</summary>
+    public string? Reason { get; init; }
+
+    /// <summary>是否已确认邮箱。</summary>
+    public bool IsVerified => Status == RegistrationStatuses.Verified;
+
+    /// <summary>是否还在等待确认。</summary>
+    public bool IsPending => Status == RegistrationStatuses.Pending;
+
+    /// <summary>是否已进入不可继续的终态。</summary>
+    public bool IsTerminal => Status is RegistrationStatuses.Verified
+        or RegistrationStatuses.Expired
+        or RegistrationStatuses.Failed;
 }
 
 /// <summary>密码直连登录的结果（<c>POST {base}/login</c>）。</summary>

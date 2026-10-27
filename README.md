@@ -21,10 +21,10 @@ dotnet add package EliCloud.Sdk --prerelease             # 客户端 SDK
 dotnet add package EliCloud.Sdk.AspNetCore --prerelease  # 资源服务侧（依赖上面那个）
 ```
 
-当前发布版本：**1.0.0-alpha.2**（预发布）。三点须知：
+当前发布版本：**1.0.0-alpha.3**（预发布）。三点须知：
 
 1. 预发布版不会被 `dotnet add package` 默认选中，必须加 `--prerelease`，
-   或写死 `--version 1.0.0-alpha.2`；等正式版发出后 `--prerelease` 就可以去掉。
+   或写死 `--version 1.0.0-alpha.3`；等正式版发出后 `--prerelease` 就可以去掉。
 2. nuget.org 上**同一版本号不可覆盖**（只能 unlist），所以每次发布都要换版本号：
    改 `Directory.Build.props` 的 `VersionSuffix`（预发布）或删掉它（正式版）。
 3. 包内自带本 README，nuget.org 详情页直接渲染它 —— 但其中的**相对链接**
@@ -49,7 +49,10 @@ dotnet add package EliCloud.Sdk.AspNetCore --prerelease  # 资源服务侧（依
 |---|---|---|
 | GET | `/auth/.well-known/openid-configuration` | `SsoClient.GetDiscoveryDocumentAsync` |
 | GET | `/auth/.well-known/jwks.json` | `SsoClient.GetJsonWebKeySetAsync` / `GetJsonWebKeySetJsonAsync` |
-| POST | `/auth/register` | `SsoClient.RegisterAsync` |
+| POST | `/auth/register` | `SsoClient.StartRegistrationAsync` |
+| POST | `/auth/register/status` | `SsoClient.GetRegistrationStatusAsync` |
+| POST | `/auth/register/resend` | `SsoClient.ResendRegistrationEmailAsync` |
+| POST | `/auth/register/cancel` | `SsoClient.CancelRegistrationAsync` |
 | POST | `/auth/login` | `SsoClient.LoginAsync` |
 | POST | `/auth/refresh` | `SsoClient.RefreshAsync` |
 | GET/POST | `/auth/userinfo` | `SsoClient.GetUserInfoAsync` |
@@ -355,7 +358,7 @@ pwsh -File eng/test.ps1 -Runner xunit    # 用 xunit 控制台运行器（见下
 OIDC 令牌换取**一次性、1 小时有效**的临时 key，用完即废。
 
 ```text
-push tag v1.0.0-alpha.2 ─┐
+push tag v1.0.0-alpha.3 ─┐
 Actions 页面手动触发     ─┴─→ 跑测试 → NuGet/login@v1 换临时 key → eng/publish.ps1 -Push
 ```
 
@@ -365,7 +368,7 @@ Actions 页面手动触发     ─┴─→ 跑测试 → NuGet/login@v1 换临�
 # 1) 改版本号：Directory.Build.props 里的 VersionPrefix / VersionSuffix
 # 2) 提交，然后打 tag —— tag 必须与打包出的版本一致，
 #    否则 workflow 会在推送前就失败（不会出现 tag v1.2.3 却推 1.0.0）
-git tag v1.0.0-alpha.2
+git tag v1.0.0-alpha.3
 git push origin main --tags
 ```
 
@@ -409,7 +412,7 @@ pwsh -File eng/publish.ps1 -VersionSuffix beta.1  # 换个预发布号试打包
   并随包页公开在 nuget.org 上。已彻底移除，这也是入口地址变成必填项的原因。
 - 文档与示例统一用保留域名 `https://api.example.com`，测试统一用 `https://elicloud.test`。
 - 线上集成测试的目标只能由 `ELICLOUD_LIVE_BASE` 环境变量提供。
-- `1.0.0-alpha.1` 是那次失误的产物，**不要再使用**：请用 `1.0.0-alpha.2` 及以后。
+- `1.0.0-alpha.1` 是那次失误的产物，**不要再使用**：请用 `1.0.0-alpha.3` 及以后。
   它已在 nuget.org 上被 unlist；注意 nuget.org **不支持删除包**，unlist 只是让它不再出现在
   搜索结果与版本列表里，按精确版本仍可下载，其包内容（内含当时的 README）也无法追回。
 
@@ -492,6 +495,33 @@ var tokens = await sso.ExchangeCodeAsync(new AuthorizationCodeTokenRequest
 **密码直连的已知缺口**：私有 `POST /v1/logout` 已被平台删除，而密码直连签发的
 refresh token 没有会话绑定，**因此无法主动撤销**，只能等 TTL（默认 30 天）自然过期，
 或改用授权码流程（`sso/README.md` §18.4）。所以密码直连只适合开发联调。
+
+### 5.2.1 注册与邮箱验证
+
+注册不再直接返回账号；SDK 把流程拆成四步：
+
+```csharp
+var pending = await sso.StartRegistrationAsync("alice", "S3cret!pass1", "alice@example.com");
+// 把 pending.RegistrationId 保存到内存；用户点击邮件里的确认链接后轮询：
+while (true)
+{
+    var status = await sso.GetRegistrationStatusAsync(pending.RegistrationId);
+    if (status.IsVerified) break;                  // 账号已创建
+    if (status.Status is RegistrationStatuses.Expired or RegistrationStatuses.Failed) break;
+    await Task.Delay(TimeSpan.FromSeconds(2));
+}
+
+// 需要重发（60 秒冷却）：
+var resent = await sso.ResendRegistrationEmailAsync(pending.RegistrationId);
+
+// 用户换邮箱/放弃：
+await sso.CancelRegistrationAsync(pending.RegistrationId);
+```
+
+- 登录时若账号还在 pending，`LoginAsync` 抛 `EliCloudApiException { Error = email_not_verified }`。
+- `RegistrationPending.EmailMasked` 是掩码；完整邮箱由调用方自己保存。
+- `RegistrationId` 是状态查询/重发/取消的 capability，不要当用户 ID 持久化。
+- 服务端与 email 服务的契约见 `sso/docs/registration-email.md`。
 
 ### 5.3 登出（RP-Initiated Logout）
 
